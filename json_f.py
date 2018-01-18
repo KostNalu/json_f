@@ -1,20 +1,20 @@
 # -------------------------------------------------------------------
 # Программа для рассылки сообщений контрагенам о долгах по документам 
 # ООО-предприятия "Полимер"
-# 09.01.18 ver. 0.1 by Kostya Pakhomov
+# 18.01.18 ver. 0.2 by Kostya Pakhomov
 # Python3 required
 # -------------------------------------------------------------------
-import json, smtplib, time, os, datetime
+import datetime, os, json, re, smtplib, time
 from string import Template
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 
 BASE_AGE = 7							# JSON файл должен быть не старше чем ... дней 
-JSON_FILE = 'path.json'					# JSON файл
+JSON_FILE = 'docs.json'					# JSON файл
 LOG_FILE = 'logfile.txt'				# LOG файл
 MY_ADDRESS = 'kost@polimer.vn.ua'		# Адрес для логина на SMTP сервер
-SPECIAL_ADDRESS = 'info@polimer.vn.ua'  # Спецадрес для отправки 
-PASSWORD = 'password'					# Пароль для логина на SMTP сервер
+SPECIAL_ADDRESS = 'info@polimer.vn.ua'	# Спецадрес для отправки 
+PASSWORD = 'kostas46'					# Пароль для логина на SMTP сервер
 MY_HOST = '10.0.1.50'					# SMTP сервер
 MY_PORT = 25							# SMTP порт
 
@@ -61,14 +61,12 @@ def get_contacts(filename):
 			docum_desc.append(item['N/A'])
 #			docum_invoice.append(item['N/A'])
 
-# Поменяем в списке docum_desc описания на более удобочитаемые
+	# Поменяем в списке docum_desc описания на более удобочитаемые используя RegEx
 	for n,i in enumerate(docum_desc):
-		if i == 'нет док':
-			docum_desc[n] = 'Нет документов'
-		if i == 'нет длок':
-			docum_desc[n] = 'Нет документов'
-		if i == 'дор /d{1,}':
-			docum_desc[n] = 'Доручення'
+		if re.findall(r'нет д\w{1,}', i):
+			docum_desc[n] = 'Немає документів'
+		if re.findall(r'дор\s{1,}\d{1,}', i):
+			docum_desc[n] = 'Немає доручення'
 
 	# Добываем данные из раздела "Контактная информация"
 	for item in contact_infos:
@@ -85,9 +83,9 @@ def read_template(filename):
 	return Template(template_file_content)
 
 def modification_date(filename):
-	today = datetime.datetime.today()
+	today_date = datetime.datetime.today()
 	modified_date = datetime.datetime.fromtimestamp(os.path.getmtime(filename))
-	duration = today - modified_date
+	duration = today_date - modified_date
 	return duration.days > BASE_AGE 
 
 def send_emails(from_addr, to_addr, message):
@@ -137,10 +135,10 @@ def main():
 				print(message_ret)
 #				send_emails(MY_ADDRESS, man_email, message_ret)
 			else:
-				message = message_template.substitute(NUMBER_PP=nums, CLIENT_NAME=name, DOC_NUMBER=doc_n, DOC_DATE=doc_date, DOC_DESC=doc_desc, MANAGER_NAME=man_name, MANAGER_EMAIL=man_email)
+				message = message_template.substitute(NUMBER_PP=nums, CLIENT_NAME=name, DOC_NUMBER=doc_n, DOC_DATE=doc_date, DOC_DESC=doc_desc.title(), MANAGER_NAME=man_name, MANAGER_EMAIL=man_email)
 				print(message)
 #				send_emails(man_email, con_email, message)
-#			time.sleep(20) # пауза	
+			time.sleep(20) # пауза	
 
 if __name__ == '__main__':
 	main()
