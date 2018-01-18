@@ -14,7 +14,7 @@ JSON_FILE = 'docs.json'					# JSON файл
 LOG_FILE = 'logfile.txt'				# LOG файл
 MY_ADDRESS = 'kost@polimer.vn.ua'		# Адрес для логина на SMTP сервер
 SPECIAL_ADDRESS = 'info@polimer.vn.ua'	# Спецадрес для отправки 
-PASSWORD = 'kostas46'					# Пароль для логина на SMTP сервер
+PASSWORD = ''					# Пароль для логина на SMTP сервер
 MY_HOST = '10.0.1.50'					# SMTP сервер
 MY_PORT = 25							# SMTP порт
 
