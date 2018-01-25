@@ -1,22 +1,31 @@
 # -------------------------------------------------------------------
 # Программа для рассылки сообщений контрагенам о долгах по документам 
 # ООО-предприятия "Полимер"
-# 18.01.18 ver. 0.2 by Kostya Pakhomov
-# Python3 required
+# 25.01.18 ver. 0.4 by Kostya Pakhomov
+# Python 3 required
 # -------------------------------------------------------------------
-import datetime, os, json, re, smtplib, time
+import configparser, datetime, os, json, re, smtplib, time
+import config_ini as ini
 from string import Template
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 
-BASE_AGE = 7							# JSON файл должен быть не старше чем ... дней 
-JSON_FILE = 'docs.json'					# JSON файл
-LOG_FILE = 'logfile.txt'				# LOG файл
-MY_ADDRESS = 'kost@polimer.vn.ua'		# Адрес для логина на SMTP сервер
-SPECIAL_ADDRESS = 'info@polimer.vn.ua'	# Спецадрес для отправки 
-PASSWORD = ''					# Пароль для логина на SMTP сервер
-MY_HOST = '10.0.1.50'					# SMTP сервер
-MY_PORT = 25							# SMTP порт
+# Сегодняшняя дата и время
+today_date = datetime.datetime.today()
+
+# Читаем json_f.ini
+JSON_FILE = ini.get_setting(ini.path, "Settings", "file")
+BASE_AGE = int(ini.get_setting(ini.path, "Settings", "age"))
+LOG_FILE = ini.get_setting(ini.path, "Settings", "log")
+MY_ADDRESS = ini.get_setting(ini.path, "Settings", "login")
+PASSWORD = ini.get_setting(ini.path, "Settings", "password")
+SPECIAL_ADDRESS = ini.get_setting(ini.path, "Settings", "from")
+MESSAGE_FILE = ini.get_setting(ini.path, "Templates", "message")
+MESSAGE_FILE_RET = ini.get_setting(ini.path, "Templates", "message_ret")
+MESSAGE_FILE_EMPTY = ini.get_setting(ini.path, "Templates", "message_empty")
+MY_HOST = ini.get_setting(ini.path, "Settings", "host")
+MY_PORT = ini.get_setting(ini.path, "Settings", "port")
+MY_PAUSE = int(ini.get_setting(ini.path, "Settings", "pause"))
 
 def get_contacts(filename):
 	
@@ -42,7 +51,7 @@ def get_contacts(filename):
 			contact_infos.append(item['Контактная информация'])
 		except KeyError: # Если нет данных - заносим N/A
 			number_pp.append(['N/A'])
-			clent_names.append('N/A')
+			client_names.append('N/A')
 			managers.append('N/A')
 			manager_emails.append('N/A')
 			docum.append('N/A')
@@ -83,7 +92,6 @@ def read_template(filename):
 	return Template(template_file_content)
 
 def modification_date(filename):
-	today_date = datetime.datetime.today()
 	modified_date = datetime.datetime.fromtimestamp(os.path.getmtime(filename))
 	duration = today_date - modified_date
 	return duration.days > BASE_AGE 
@@ -102,7 +110,7 @@ def send_emails(from_addr, to_addr, message):
 	msg['To']=to_addr
 	msg['Subject']='Повернення документів'
 		
-	# Добавим тело сообщения
+	# Добавим тело сообщения (plain text)
 	msg.attach(MIMEText(message, 'plain'))
 		
 	# Отправим сообщение через сервер, установленный ранее
@@ -113,16 +121,16 @@ def send_emails(from_addr, to_addr, message):
 	s.quit()
 
 def main():
-	today_date = datetime.datetime.today()
 	if modification_date(JSON_FILE):
 		with open(LOG_FILE, 'a') as f:		
 			f.write('%s: File is older than %s days!\n' % (today_date, BASE_AGE))
-		print('%s: File is older than %s days!' % (today_date, BASE_AGE))
+		msg = '{today_date}: File is older than {BASE_AGE} days!'.format(today_date=today_date, BASE_AGE=BASE_AGE)
+		print(msg)
 	else:
 		nums, names, docum_n, docum_date, docum_desc, contact_emails, managers, manager_emails = get_contacts(JSON_FILE)
-		message_template = read_template('message.txt')
-		message_ret_template = read_template('message_ret.txt')
-		message_empty_template = read_template('message_empty.txt')
+		message_template = read_template(MESSAGE_FILE)
+		message_ret_template = read_template(MESSAGE_FILE_RET)
+		message_empty_template = read_template(MESSAGE_FILE_EMPTY)
 
 		for nums, name, doc_n, doc_date, doc_desc, con_email, man_name, man_email in zip(nums, names, docum_n, docum_date, docum_desc, contact_emails, managers, manager_emails):
 
@@ -138,7 +146,7 @@ def main():
 				message = message_template.substitute(NUMBER_PP=nums, CLIENT_NAME=name, DOC_NUMBER=doc_n, DOC_DATE=doc_date, DOC_DESC=doc_desc.title(), MANAGER_NAME=man_name, MANAGER_EMAIL=man_email)
 				print(message)
 #				send_emails(man_email, con_email, message)
-			time.sleep(20) # пауза	
+			time.sleep(MY_PAUSE) # пауза	
 
 if __name__ == '__main__':
 	main()
